@@ -1,13 +1,14 @@
 package grabber
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/dfuentes/torrent-grabber/config"
 	"github.com/mmcdole/gofeed"
@@ -66,13 +67,12 @@ func downloadItem(item *gofeed.Item, path string) {
 
 	enc := item.Enclosures[0]
 
-	url, err := url.Parse(enc.URL)
-	if err != nil {
-		log.Printf("failed to parse url '%s': %s", enc.URL, err)
-		return
+	var filename string
+	if strings.HasPrefix(enc.URL, "magnet") {
+		filename = fmt.Sprintf("%s.magnet", item.GUID)
+	} else {
+		filename = fmt.Sprintf("%s.torrent", item.GUID)
 	}
-
-	filename := filepath.Base(url.Path)
 
 	out, err := os.Create(filepath.Join(path, filename))
 	if err != nil {
@@ -81,12 +81,19 @@ func downloadItem(item *gofeed.Item, path string) {
 	}
 	defer out.Close()
 
-	resp, err := http.Get(enc.URL)
-	if err != nil {
-		log.Printf("failed to fetch url '%s': %s", enc.URL, err)
-		return
-	}
-	defer resp.Body.Close()
+	if strings.HasPrefix(enc.URL, "magnet") {
+		_, err = out.Write([]byte(enc.URL))
+		if err != nil {
+			log.Printf("failed to write magnet file")
+		}
+	} else {
+		resp, err := http.Get(enc.URL)
+		if err != nil {
+			log.Printf("failed to fetch torrent from url '%s': %s", enc.URL, err)
+			return
+		}
+		defer resp.Body.Close()
 
-	_, err = io.Copy(out, resp.Body)
+		_, err = io.Copy(out, resp.Body)
+	}
 }
