@@ -1,0 +1,6 @@
+feeds:
+  - url: https://eztv.ag/ezrss.xml
+    filters:
+      - "[Ll]egion.*720p"
+      - "[Ii]t's Always Sunny.*720p"
+    output-dir: ./
